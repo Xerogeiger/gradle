@@ -16,12 +16,11 @@
 package org.gradle.initialization;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.gradle.BuildListener;
 import org.gradle.BuildResult;
 import org.gradle.api.internal.GradleInternal;
 import org.gradle.api.internal.SettingsInternal;
+import org.gradle.api.internal.StartParameterInternal;
 import org.gradle.composite.internal.IncludedBuildControllers;
 import org.gradle.configuration.ProjectsPreparer;
 import org.gradle.execution.BuildWorkExecutor;
@@ -35,7 +34,8 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+
+import static com.google.common.collect.Lists.newArrayList;
 
 public class DefaultGradleLauncher implements GradleLauncher {
     private enum Stage {
@@ -244,19 +244,16 @@ public class DefaultGradleLauncher implements GradleLauncher {
 
     @Override
     public void scheduleTasks(final Iterable<String> taskPaths) {
-        GradleInternal gradle = getConfiguredBuild();
-        Set<String> allTasks = Sets.newLinkedHashSet(gradle.getStartParameter().getTaskNames());
-        boolean added = allTasks.addAll(Lists.newArrayList(taskPaths));
-
+        boolean added = getConfiguredBuild().getStartParameter().addTaskNames(taskPaths);
         if (!added) {
             return;
         }
+        reevaluateTaskGraph();
+    }
 
-        gradle.getStartParameter().setTaskNames(allTasks);
-
+    private void reevaluateTaskGraph() {
         // Force back to configure so that task graph will get reevaluated
         stage = Stage.Configure;
-
         doBuildStages(Stage.TaskGraph);
     }
 
